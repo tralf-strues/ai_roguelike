@@ -7,6 +7,7 @@ State *create_attack_enemy_state();
 State *create_move_to_enemy_state();
 State *create_flee_from_enemy_state();
 State *create_patrol_state(float patrol_dist);
+State *create_heal_state();
 State *create_nop_state();
 
 // transitions

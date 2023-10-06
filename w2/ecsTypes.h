@@ -1,5 +1,7 @@
 #pragma once
 
+#include <flecs.h>
+
 struct Position;
 struct MovePos;
 
@@ -88,6 +90,12 @@ struct HealAmount
 struct PowerupAmount
 {
   float amount = 0.f;
+};
+
+struct CanPickupBuffs {};
+
+struct Waypoint {
+  flecs::entity next;
 };
 
 struct PlayerInput

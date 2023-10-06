@@ -44,6 +44,37 @@ static void add_attack_sm(flecs::entity entity)
   });
 }
 
+static void add_patrol_attack_sm(flecs::entity entity)
+{
+  entity.get([](StateMachine &sm)
+  {
+    int patrol = sm.addState(create_patrol_state(3.f));
+    int moveToEnemy = sm.addState(create_move_to_enemy_state());
+
+    sm.addTransition(create_enemy_available_transition(4.f), patrol, moveToEnemy);
+    sm.addTransition(create_negate_transition(create_enemy_available_transition(6.f)), moveToEnemy, patrol);
+  });
+}
+
+static void add_patrol_attack_heal_self_sm(flecs::entity entity)
+{
+  entity.get([](StateMachine &sm)
+  {
+    int patrol = sm.addState(create_patrol_state(3.f));
+    int moveToEnemy = sm.addState(create_move_to_enemy_state());
+    int heal = sm.addState(create_heal_state());
+
+    sm.addTransition(create_enemy_available_transition(4.f), patrol, moveToEnemy);
+    sm.addTransition(create_negate_transition(create_enemy_available_transition(6.f)), moveToEnemy, patrol);
+
+    sm.addTransition(create_hitpoints_less_than_transition(60.f), patrol, heal);
+    sm.addTransition(create_hitpoints_less_than_transition(60.f), moveToEnemy, heal);
+
+    sm.addTransition(create_enemy_available_transition(4.f), heal, moveToEnemy);
+    sm.addTransition(create_negate_transition(create_enemy_available_transition(6.f)), heal, moveToEnemy);
+  });
+}
+
 static flecs::entity create_monster(flecs::world &ecs, int x, int y, Color color)
 {
   return ecs.entity()
@@ -56,7 +87,8 @@ static flecs::entity create_monster(flecs::world &ecs, int x, int y, Color color
     .set(StateMachine{})
     .set(Team{1})
     .set(NumActions{1, 0})
-    .set(MeleeDamage{20.f});
+    .set(MeleeDamage{20.f})
+    .add<RectShape>();
 }
 
 static void create_player(flecs::world &ecs, int x, int y)
@@ -71,7 +103,8 @@ static void create_player(flecs::world &ecs, int x, int y)
     .set(Team{0})
     .set(PlayerInput{})
     .set(NumActions{2, 0})
-    .set(MeleeDamage{50.f});
+    .set(MeleeDamage{50.f})
+    .add<RectShape>();
 }
 
 static void create_heal(flecs::world &ecs, int x, int y, float amount)
@@ -79,7 +112,8 @@ static void create_heal(flecs::world &ecs, int x, int y, float amount)
   ecs.entity()
     .set(Position{x, y})
     .set(HealAmount{amount})
-    .set(GetColor(0x44ff44ff));
+    .set(GetColor(0x44ff44ff))
+    .add<CircleShape>();
 }
 
 static void create_powerup(flecs::world &ecs, int x, int y, float amount)
@@ -87,7 +121,8 @@ static void create_powerup(flecs::world &ecs, int x, int y, float amount)
   ecs.entity()
     .set(Position{x, y})
     .set(PowerupAmount{amount})
-    .set(Color{255, 255, 0, 255});
+    .set(Color{255, 255, 0, 255})
+    .add<CircleShape>();
 }
 
 static void register_roguelike_systems(flecs::world &ecs)
@@ -112,12 +147,18 @@ static void register_roguelike_systems(flecs::world &ecs)
       inp.up = up;
       inp.down = down;
     });
-  ecs.system<const Position, const Color>()
+  ecs.system<const Position, const Color, const RectShape>()
     .term<TextureSource>(flecs::Wildcard).not_()
-    .each([&](const Position &pos, const Color color)
+    .each([&](const Position &pos, const Color color, const RectShape)
     {
       const Rectangle rect = {float(pos.x), float(pos.y), 1, 1};
       DrawRectangleRec(rect, color);
+    });
+  ecs.system<const Position, const Color, const CircleShape>()
+    .term<TextureSource>(flecs::Wildcard).not_()
+    .each([&](const Position &pos, const Color color, const CircleShape)
+    {
+      DrawCircleV(Vector2{pos.x + 0.5f, pos.y + 0.5f}, 0.5f, color);
     });
   ecs.system<const Position, const Color>()
     .term<TextureSource>(flecs::Wildcard)
@@ -135,10 +176,19 @@ void init_roguelike(flecs::world &ecs)
 {
   register_roguelike_systems(ecs);
 
-  add_patrol_attack_flee_sm(create_monster(ecs, 5, 5, GetColor(0xee00eeff)));
-  add_patrol_attack_flee_sm(create_monster(ecs, 10, -5, GetColor(0xee00eeff)));
-  add_patrol_flee_sm(create_monster(ecs, -5, -5, GetColor(0x111111ff)));
-  add_attack_sm(create_monster(ecs, -5, 5, GetColor(0x880000ff)));
+  // add_patrol_attack_flee_sm(create_monster(ecs, 5, 5, GetColor(0xee00eeff)));
+  // add_patrol_attack_flee_sm(create_monster(ecs, 10, -5, GetColor(0xee00eeff)));
+  // add_patrol_flee_sm(create_monster(ecs, -5, -5, GetColor(0x111111ff)));
+  // add_attack_sm(create_monster(ecs, -5, 5, GetColor(0x880000ff)));
+
+  // Berserk
+  add_patrol_attack_sm(create_monster(ecs, -10, -5, GetColor(0xee0000ff)));
+
+  // Self-healer
+  auto self_healer = create_monster(ecs, 10, -5, GetColor(0x0000eeff));
+  self_healer.set<HealTarget>(HealTarget{self_healer});
+  self_healer.set<HealAmount>(HealAmount{50.0f});
+  add_patrol_attack_heal_self_sm(self_healer);
 
   create_player(ecs, 0, 0);
 

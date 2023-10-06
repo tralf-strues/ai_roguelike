@@ -1,5 +1,7 @@
 #pragma once
 
+#include <flecs.h>
+
 struct Position;
 struct MovePos;
 
@@ -84,6 +86,11 @@ struct HealAmount
   float amount = 0.f;
 };
 
+struct HealTarget
+{
+  flecs::entity target;
+};
+
 struct PowerupAmount
 {
   float amount = 0.f;
@@ -110,4 +117,7 @@ struct Team
 };
 
 struct TextureSource {};
+
+struct CircleShape {};
+struct RectShape {};
 

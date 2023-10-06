@@ -118,6 +118,23 @@ public:
   }
 };
 
+class HealState : public State
+{
+public:
+  HealState() {}
+  void enter() const override {}
+  void exit() const override {}
+  void act(float/* dt*/, flecs::world &ecs, flecs::entity entity) const override
+  {
+    entity.get([&](const HealAmount &heal, HealTarget& target)
+    {
+      target.target.set([&](Hitpoints& hitpoints) {
+        hitpoints.hitpoints += heal.amount;
+      });
+    });
+  }
+};
+
 class NopState : public State
 {
 public:
@@ -225,6 +242,11 @@ State *create_flee_from_enemy_state()
 State *create_patrol_state(float patrol_dist)
 {
   return new PatrolState(patrol_dist);
+}
+
+State *create_heal_state()
+{
+  return new HealState();
 }
 
 State *create_nop_state()
