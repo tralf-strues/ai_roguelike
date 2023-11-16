@@ -128,4 +128,3 @@ struct ActionLog
   std::vector<std::string> log;
   size_t capacity = 5;
 };
-

@@ -23,6 +23,10 @@ using utility_function = std::function<float(Blackboard&)>;
 BehNode *sequence(const std::vector<BehNode*> &nodes);
 BehNode *selector(const std::vector<BehNode*> &nodes);
 BehNode *utility_selector(const std::vector<std::pair<BehNode*, utility_function>> &nodes);
+BehNode *utility_selector_weighted_random(const std::vector<std::pair<BehNode*, utility_function>> &nodes);
+BehNode *utility_selector_inertial(
+    const std::vector<std::pair<BehNode *, utility_function>> &nodes,
+    float inertiaAmount, float damp);
 
 BehNode *move_to_entity(flecs::entity entity, const char *bb_name);
 BehNode *is_low_hp(float thres);
@@ -30,4 +34,5 @@ BehNode *find_enemy(flecs::entity entity, float dist, const char *bb_name);
 BehNode *flee(flecs::entity entity, const char *bb_name);
 BehNode *patrol(flecs::entity entity, float patrol_dist, const char *bb_name);
 BehNode *patch_up(float thres);
-
+BehNode *random_explore();
+BehNode *return_to_base();
