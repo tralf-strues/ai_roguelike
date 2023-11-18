@@ -162,6 +162,7 @@ static void create_player(flecs::world &ecs, const char *texture_src)
     .set(NumActions{2, 0})
     .set(Color{255, 255, 255, 255})
     .add<TextureSource>(textureSrc)
+    .set(DmapWeights{{{"auto_explore_map", {1.f, 1.f}}}})
     .set(MeleeDamage{20.f});
 }
 
@@ -184,6 +185,7 @@ static void create_powerup(flecs::world &ecs, int x, int y, float amount)
 static void register_roguelike_systems(flecs::world &ecs)
 {
   static auto dungeonDataQuery = ecs.query<const DungeonData>();
+  static auto tileExploredQuery = ecs.query<const Position, Explored>();
   ecs.system<PlayerInput, Action, const IsPlayer>()
     .each([&](PlayerInput &inp, Action &a, const IsPlayer)
     {
@@ -191,6 +193,7 @@ static void register_roguelike_systems(flecs::world &ecs)
       bool right = IsKeyDown(KEY_RIGHT);
       bool up = IsKeyDown(KEY_UP);
       bool down = IsKeyDown(KEY_DOWN);
+      bool f = IsKeyDown(KEY_F);
       if (left && !inp.left)
         a.action = EA_MOVE_LEFT;
       if (right && !inp.right)
@@ -199,10 +202,14 @@ static void register_roguelike_systems(flecs::world &ecs)
         a.action = EA_MOVE_UP;
       if (down && !inp.down)
         a.action = EA_MOVE_DOWN;
+      if (f && !inp.f)
+        a.action = EA_AUTO_EXPLORE;
+
       inp.left = left;
       inp.right = right;
       inp.up = up;
       inp.down = down;
+      inp.f = f;
 
       bool pass = IsKeyDown(KEY_SPACE);
       if (pass && !inp.passed)
@@ -297,6 +304,26 @@ static void register_roguelike_systems(flecs::world &ecs)
           }
       });
     });
+
+  ecs.system<const Position, const IsPlayer>()
+    .each([&](const Position &playerPos, const IsPlayer&)
+    {
+      tileExploredQuery.each([&](const Position &tilePos, Explored &explored)
+      {
+        if (dist(playerPos, tilePos) <= 2.0f) {
+          explored.value = true;
+        }
+      });
+  });
+
+  ecs.system<const Position, const Explored>()
+    .each([&](const Position &pos, const Explored &explored)
+    {
+      if (!explored.value) {
+        const Rectangle rect = {float(pos.x) * tile_size, float(pos.y) * tile_size, tile_size, tile_size};
+        DrawRectangleRec(rect, Color{0x44, 0x44, 0x44, 0xFF});
+      }
+    });
 }
 
 
@@ -350,7 +377,8 @@ void init_dungeon(flecs::world &ecs, char *tiles, size_t w, size_t h)
       flecs::entity tileEntity = ecs.entity()
         .add<BackgroundTile>()
         .set(Position{int(x), int(y)})
-        .set(Color{255, 255, 255, 255});
+        .set(Color{255, 255, 255, 255})
+        .set(Explored{false});
       if (tile == dungeon::wall)
         tileEntity.add<TextureSource>(wallTex);
       else if (tile == dungeon::floor)
@@ -533,6 +561,9 @@ void process_turn(flecs::world &ecs)
   static auto stateMachineAct = ecs.query<StateMachine>();
   static auto behTreeUpdate = ecs.query<BehaviourTree, Blackboard>();
   static auto turnIncrementer = ecs.query<TurnCounter>();
+
+  process_dmap_followers(ecs, 0);
+
   if (is_player_acted(ecs))
   {
     if (upd_player_actions_count(ecs))
@@ -569,6 +600,11 @@ void process_turn(flecs::world &ecs)
     dmaps::gen_hive_pack_map(ecs, hiveMap);
     ecs.entity("hive_map")
       .set(DijkstraMapData{hiveMap});
+
+    std::vector<float> autoExploreMap;
+    dmaps::gen_explore_map(ecs, autoExploreMap);
+    ecs.entity("auto_explore_map")
+      .set(DijkstraMapData{autoExploreMap});
 
     //ecs.entity("flee_map").add<VisualiseMap>();
     ecs.entity("hive_follower_sum")

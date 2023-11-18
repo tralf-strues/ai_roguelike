@@ -73,6 +73,7 @@ enum Actions
   EA_ATTACK = EA_MOVE_END,
   EA_HEAL_SELF,
   EA_PASS,
+  EA_AUTO_EXPLORE,
   EA_NUM
 };
 
@@ -109,6 +110,7 @@ struct PlayerInput
   bool up = false;
   bool down = false;
   bool passed = false;
+  bool f = false;
 };
 
 struct Symbol
@@ -165,3 +167,8 @@ struct DmapWeights
 };
 
 struct Hive {};
+
+struct Explored
+{
+  bool value = false;
+};

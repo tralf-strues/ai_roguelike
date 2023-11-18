@@ -2,9 +2,9 @@
 #include "dmapFollower.h"
 #include <cmath>
 
-void process_dmap_followers(flecs::world &ecs)
+void process_dmap_followers(flecs::world &ecs, int team)
 {
-  static auto processDmapFollowers = ecs.query<const Position, Action, const DmapWeights>();
+  static auto processDmapFollowers = ecs.query<const Position, Action, const DmapWeights, const Team>();
   static auto dungeonDataQuery = ecs.query<const DungeonData>();
 
   auto get_dmap_at = [&](const DijkstraMapData &dmap, const DungeonData &dd, size_t x, size_t y, float mult, float pow)
@@ -16,8 +16,16 @@ void process_dmap_followers(flecs::world &ecs)
   };
   dungeonDataQuery.each([&](const DungeonData &dd)
   {
-    processDmapFollowers.each([&](const Position &pos, Action &act, const DmapWeights &wt)
+    processDmapFollowers.each([&](const Position &pos, Action &act, const DmapWeights &wt, const Team &fTeam)
     {
+      if (fTeam.team != team) {
+        return;
+      }
+
+      if (fTeam.team == 0 && act.action != EA_AUTO_EXPLORE) {
+        return;
+      }
+
       float moveWeights[EA_MOVE_END];
       for (size_t i = 0; i < EA_MOVE_END; ++i)
         moveWeights[i] = 0.f;
