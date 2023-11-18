@@ -66,15 +66,54 @@ static void process_dmap(std::vector<float> &map, const DungeonData &dd)
   }
 }
 
-void dmaps::gen_player_approach_map(flecs::world &ecs, std::vector<float> &map)
+Position GetNearestVisible(const DungeonData& dd, const Position& from, const Position& to)
+{
+  Position cur = from;
+  Position lastWalkable = cur;
+  while (cur != to)
+  {
+    auto IsWalkable = [&](const Position& position) -> bool {
+      return dd.tiles[position.y * dd.width + position.x] != dungeon::wall;
+    };
+    
+    if (!IsWalkable(cur)) {
+      break;
+    }
+
+    Position delta = to - cur;
+    if (abs(delta.x) > abs(delta.y))
+      cur.x += delta.x > 0 ? 1 : -1;
+    else
+      cur.y += delta.y > 0 ? 1 : -1;
+
+    if (IsWalkable(cur)) {
+      lastWalkable = cur;
+    }
+  }
+
+  return lastWalkable;
+}
+
+void dmaps::gen_player_approach_map(flecs::world &ecs, std::vector<float> &map, int range)
 {
   query_dungeon_data(ecs, [&](const DungeonData &dd)
   {
     init_tiles(map, dd);
     query_characters_positions(ecs, [&](const Position &pos, const Team &t)
     {
-      if (t.team == 0) // player team hardcode
-        map[pos.y * dd.width + pos.x] = 0.f;
+      if (t.team != 0) // player team hardcode
+        return;
+
+      for (int tx = -range; tx <= range; ++tx) {
+        auto determine = [&](int ty) {
+          Position nearest = GetNearestVisible(dd, pos, pos + Position{tx, ty});
+          map[nearest.y * dd.width + nearest.x] = 0.f;
+        };
+
+        int ty = range - abs(tx);
+        determine(ty);
+        determine(-ty);
+      }
     });
     process_dmap(map, dd);
   });
@@ -114,7 +153,7 @@ void dmaps::gen_explore_map(flecs::world &ecs, std::vector<float> &map)
     init_tiles(map, dd);
     tileQuery.each([&](const Position &pos, const Explored &explored)
     {
-      if (!explored.value) {
+      if (!explored.value && dungeon::is_tile_walkable(ecs, pos)) {
         map[pos.y * dd.width + pos.x] = 0.f;
       }
     });
@@ -122,3 +161,20 @@ void dmaps::gen_explore_map(flecs::world &ecs, std::vector<float> &map)
   });
 }
 
+void dmaps::gen_ally_map(flecs::world &ecs, std::vector<float> &map, flecs::entity target)
+{
+  static auto allyQuery = ecs.query<const Position, const Team>();
+  query_dungeon_data(ecs, [&](const DungeonData &dd)
+  {
+    init_tiles(map, dd);
+    target.get([&](const Team &targetTeam) {
+      allyQuery.each([&](flecs::entity e, const Position &pos, const Team &team)
+      {
+        if (e != target && team.team == targetTeam.team) {
+          map[pos.y * dd.width + pos.x] = 0.f;
+        }
+      });
+    });
+    process_dmap(map, dd);
+  });
+}

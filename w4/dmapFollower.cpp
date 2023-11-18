@@ -16,7 +16,7 @@ void process_dmap_followers(flecs::world &ecs, int team)
   };
   dungeonDataQuery.each([&](const DungeonData &dd)
   {
-    processDmapFollowers.each([&](const Position &pos, Action &act, const DmapWeights &wt, const Team &fTeam)
+    processDmapFollowers.each([&](flecs::entity e, const Position &pos, Action &act, const DmapWeights &wt, const Team &fTeam)
     {
       if (fTeam.team != team) {
         return;
@@ -31,6 +31,10 @@ void process_dmap_followers(flecs::world &ecs, int team)
         moveWeights[i] = 0.f;
       for (const auto &pair : wt.weights)
       {
+        if (!pair.second.use(e)) {
+          continue;
+        }
+
         ecs.entity(pair.first.c_str()).get([&](const DijkstraMapData &dmap)
         {
           moveWeights[EA_NOP]         += get_dmap_at(dmap, dd, pos.x+0, pos.y+0, pair.second.mult, pair.second.pow);

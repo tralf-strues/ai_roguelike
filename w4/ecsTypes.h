@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <flecs.h>
 
 // TODO: make a lot of seprate files
 struct Position;
@@ -34,6 +35,11 @@ inline Position &Position::operator=(const MovePos &rhs)
 inline Position operator-(const Position &lhs, const Position &rhs)
 {
   return Position{lhs.x - rhs.x, lhs.y - rhs.y};
+}
+
+inline Position operator+(const Position &lhs, const Position &rhs)
+{
+  return Position{lhs.x + rhs.x, lhs.y + rhs.y};
 }
 
 inline MovePos &MovePos::operator=(const Position &rhs)
@@ -162,6 +168,7 @@ struct DmapWeights
   {
     float mult = 1.f;
     float pow = 1.f;
+    std::function<bool(flecs::entity)> use = [](flecs::entity) -> bool { return true; };
   };
   std::unordered_map<std::string, WtData> weights;
 };
@@ -171,4 +178,8 @@ struct Hive {};
 struct Explored
 {
   bool value = false;
+};
+
+struct AllyMapName {
+  std::string mapName;
 };
