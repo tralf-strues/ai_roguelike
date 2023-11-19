@@ -8,6 +8,7 @@
 
 namespace goap
 {
+  float heuristic(const goap::WorldState &from, const goap::WorldState &to);
 
   struct Planner
   {
@@ -41,7 +42,12 @@ namespace goap
     WorldState worldState;
   };
 
+  inline bool operator==(const PlanStep &lhs, const PlanStep &rhs) {
+    return heuristic(lhs.worldState, rhs.worldState) == 0;
+  }
+
   float make_plan(const Planner &planner, const WorldState &from, const WorldState &to, std::vector<PlanStep> &plan);
+  float make_plan_ida(const Planner &planner, const WorldState &from, const WorldState &to, std::vector<PlanStep> &plan);
   void print_plan(const Planner &planner, const WorldState &init, const std::vector<PlanStep> &plan);
 };
 

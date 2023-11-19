@@ -1,4 +1,5 @@
 #include "goapPlanner.h"
+#include "../pathfinding/ida_star.h"
 #include <algorithm>
 
 struct PlanNode
@@ -12,7 +13,7 @@ struct PlanNode
   size_t actionId;
 };
 
-static float heuristic(const goap::WorldState &from, const goap::WorldState &to)
+float goap::heuristic(const goap::WorldState &from, const goap::WorldState &to)
 {
   float cost = 0;
   for (size_t i = 0; i < to.size(); ++i)
@@ -80,6 +81,31 @@ float goap::make_plan(const Planner &planner, const WorldState &from, const Worl
     }
   }
   return 0.f;
+}
+
+float goap::make_plan_ida(const Planner &planner, const WorldState &from, const WorldState &to, std::vector<PlanStep> &plan)
+{
+  const auto ida_heuristic = [](const PlanStep& from, const PlanStep& to) {
+    return heuristic(from.worldState, to.worldState);
+  };
+
+  const auto ida_cost = [&planner](const PlanStep& node, const PlanStep& /*successor*/) {
+    return get_action_cost(planner, node.action);
+  };
+
+  const auto ida_successors = [&planner](const PlanStep& node) {
+    const auto state_transitions = find_valid_state_transitions(planner, node.worldState);
+
+    std::vector<PlanStep> successors;
+    for (const auto& transition : state_transitions) {
+      successors.emplace_back(PlanStep{transition, apply_action(planner, transition, node.worldState)});
+    }
+
+    return successors;
+  };
+
+  auto result = IdaStar(ida_heuristic, ida_cost, ida_successors, {size_t(-1), from}, {size_t(-1), to}, plan);
+  return result.value();
 }
 
 void goap::print_plan(const Planner &planner, const WorldState &init, const std::vector<PlanStep> &plan)
