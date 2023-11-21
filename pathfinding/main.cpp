@@ -7,6 +7,7 @@
 #include "math.h"
 #include "dungeonGen.h"
 #include "dungeonUtils.h"
+#include "ara_star.h"
 
 template<typename T>
 static size_t coord_to_idx(T x, T y, size_t w)
@@ -192,6 +193,72 @@ void draw_nav_data(const char *input, size_t width, size_t height, Position from
   draw_path(path);
 }
 
+struct HashPosition {
+  std::size_t operator()(const Position& k) const {
+    using std::hash;
+    return ((hash<int>()(k.x) ^ (hash<int>()(k.y) << 1)) >> 1);
+  }
+};
+
+void draw_nav_data_ara_star(const char *input, size_t width, size_t height, Position from, Position to, float weight)
+{
+  draw_nav_grid(input, width, height);
+
+  auto index_func = [width](const Position& pos) {
+    return coord_to_idx(pos.x, pos.y, width);
+  };
+
+  auto heuristic_func = [](const Position& from, const Position& to) {
+    return heuristic(from, to);
+  };
+
+  auto cost_func = [input, width](const Position& /*from*/, const Position& to) {
+    return input[coord_to_idx(to.x, to.y, width)] == 'o' ? 10.f : 1.f;
+  };
+
+  auto successors_func = [input, width, height](const Position& pos) {
+    std::vector<Position> successors;
+
+    auto add_successor = [&](int dx, int dy) {
+      Position successor = pos + Position{dx, dy};
+      // out of bounds
+      if (successor.x < 0 || successor.y < 0 || successor.x >= int(width) || successor.y >= int(height)) {
+        return;
+      }
+
+      // not empty
+      size_t idx = coord_to_idx(successor.x, successor.y, width);
+      if (input[idx] != '#') {
+        successors.push_back(successor);
+      }
+    };
+
+    add_successor( 1,  0);
+    add_successor(-1,  0);
+    add_successor( 0,  1);
+    add_successor( 0, -1);
+
+    return successors;
+  };
+
+  AraStar<Position, HashPosition> algorithm{index_func, heuristic_func, cost_func, successors_func};
+  algorithm.FindPath(width * height, from, to, weight);
+
+  /* Draw Visited */
+  for (const auto& node : algorithm.GetVisited()) {
+      const Rectangle rect = {float(node.x), float(node.y), 1.f, 1.f};
+      DrawRectangleRec(rect, Color{uint8_t(algorithm.GetG(node)), uint8_t(algorithm.GetG(node)), 0, 100});
+  }
+
+  /* Draw Path */
+  auto path = algorithm.ReconstructPath(from, to);
+
+  for (const Position& pos : path) {
+      const Rectangle rect = {float(pos.x), float(pos.y), 1.f, 1.f};
+      DrawRectangleRec(rect, GetColor(0x44000088));
+  }
+}
+
 int main(int /*argc*/, const char ** /*argv*/)
 {
   int width = 1920;
@@ -212,7 +279,7 @@ int main(int /*argc*/, const char ** /*argv*/)
   char *navGrid = new char[dungWidth * dungHeight];
   gen_drunk_dungeon(navGrid, dungWidth, dungHeight, 24, 100);
   spill_drunk_water(navGrid, dungWidth, dungHeight, 8, 10);
-  float weight = 1.f;
+  float weight = 8.f;
 
   Position from = dungeon::find_walkable_tile(navGrid, dungWidth, dungHeight);
   Position to = dungeon::find_walkable_tile(navGrid, dungWidth, dungHeight);
@@ -263,7 +330,8 @@ int main(int /*argc*/, const char ** /*argv*/)
     BeginDrawing();
       ClearBackground(BLACK);
       BeginMode2D(camera);
-        draw_nav_data(navGrid, dungWidth, dungHeight, from, to, weight);
+        // draw_nav_data(navGrid, dungWidth, dungHeight, from, to, weight);
+        draw_nav_data_ara_star(navGrid, dungWidth, dungHeight, from, to, weight);
       EndMode2D();
     EndDrawing();
   }
