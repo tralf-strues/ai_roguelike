@@ -78,6 +78,10 @@ static void register_roguelike_systems(flecs::world &ecs)
       });
     });
 
+  constexpr IVec2 kInvalidTile = IVec2{-1, -1};
+  static IVec2 from = kInvalidTile;
+  static IVec2 to = kInvalidTile;
+
   static auto cameraQuery = ecs.query<const Camera2D>();
   ecs.system<const DungeonPortals, const DungeonData>()
     .each([&](const DungeonPortals &dp, const DungeonData &dd)
@@ -133,6 +137,29 @@ static void register_roguelike_systems(flecs::world &ecs)
                      (fromCenter.x + toCenter.x) * 0.5f,
                      (fromCenter.y + toCenter.y) * 0.5f,
                      16, WHITE);
+          }
+        }
+
+        /* Path-finding */
+        IVec2 p{int(mousePosition.x), int(mousePosition.y)};
+
+        if (IsMouseButtonPressed(0)) {
+          from = p;
+        } else if (IsMouseButtonPressed(1)) {
+          to = p;
+        }
+
+        if (from != kInvalidTile && to != kInvalidTile) {
+          auto path = find_path(dd, dp, from, to);
+
+          if (!path.empty()) {
+            Rectangle rect{from.x * tile_size, from.y * tile_size, tile_size, tile_size};
+            DrawRectangleRec(rect, Color{0xAA, 0x11, 0x11, 0xBB});
+
+            for (size_t i = 1; i < path.size(); i++) {
+              rect = {path[i].x * tile_size, path[i].y * tile_size, tile_size, tile_size};
+              DrawRectangleRec(rect, Color{0x11, 0x11, 0xAA, 0xAA});
+            }
           }
         }
       });

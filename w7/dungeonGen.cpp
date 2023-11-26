@@ -41,7 +41,7 @@ void gen_drunk_dungeon(char *tiles, size_t w, size_t h)
     // select random point on map
     size_t x = rndWd();
     size_t y = rndHt();
-    startPos.push_back({int(x), int(y)});
+    startPos.push_back(IVec2{int(x), int(y)});
     size_t numExcavations = 0;
     while (numExcavations < maxExcavations)
     {

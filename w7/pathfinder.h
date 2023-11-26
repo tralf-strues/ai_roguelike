@@ -2,6 +2,9 @@
 #include <flecs.h>
 #include <vector>
 
+#include "ecsTypes.h"
+#include "math.h"
+
 struct PortalConnection
 {
   size_t connIdx;
@@ -12,6 +15,7 @@ struct PathPortal
 {
   size_t startX, startY;
   size_t endX, endY;
+  
   std::vector<PortalConnection> conns;
 };
 
@@ -24,3 +28,4 @@ struct DungeonPortals
 
 void prebuild_map(flecs::world &ecs);
 
+std::vector<IVec2> find_path(const DungeonData &dd, const DungeonPortals& dp, IVec2 from, IVec2 to);
